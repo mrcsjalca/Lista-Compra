@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "655252990799",
+    "project_id": "carrito-de-compra-e4520",
+    "storage_bucket": "carrito-de-compra-e4520.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:655252990799:android:e779e1838a6077ad91733a",
+        "android_client_info": {
+          "package_name": "org.insbaixcamp.cestadecompra"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "655252990799-8v02fle1mud34e4ijkq1jcsp9n6jnaqi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "org.insbaixcamp.cestadecompra",
+            "certificate_hash": "5e18252c74d71ccb3feba6d7046441a4f308811b"
+          }
+        },
+        {
+          "client_id": "655252990799-shtr7vqqqpevl4jehvktvu7h9mq97r9o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAV7reRoEZiGA3WAUTe7jIQzvS15Kr5jr0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "655252990799-shtr7vqqqpevl4jehvktvu7h9mq97r9o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
