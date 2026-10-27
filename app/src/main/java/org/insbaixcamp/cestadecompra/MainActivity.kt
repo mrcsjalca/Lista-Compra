@@ -25,7 +25,10 @@ import com.google.firebase.auth.FirebaseUser
 import org.insbaixcamp.cestadecompra.ui.LoginScreen
 import org.insbaixcamp.cestadecompra.ui.theme.CestadecompraTheme
 import com.google.firebase.firestore.FirebaseFirestore
-
+import org.insbaixcamp.cestadecompra.ui.ListasScreen
+import org.insbaixcamp.cestadecompra.ui.Lista
+import org.insbaixcamp.cestadecompra.ui.ListasScreen
+import androidx.compose.foundation.layout.statusBarsPadding
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +47,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CestadecompraApp() {
     var usuario by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser) }
+    var listaAbierta by remember { mutableStateOf<Lista?>(null) }
 
     // Escucha los cambios de sesión (login, logout, token revocado...)
     DisposableEffect(Unit) {
@@ -55,35 +59,54 @@ fun CestadecompraApp() {
     }
 
     val usuarioActual = usuario
-    if (usuarioActual != null) {
-        PantallaPrincipal(
-            usuario = usuarioActual,
-            onLogout = { FirebaseAuth.getInstance().signOut() }
+    val lista = listaAbierta
+    if (usuarioActual == null) {
+        LoginScreen(onLogged = { })
+    } else if (lista == null) {
+        ListasScreen(
+            email = usuarioActual.email.orEmpty().lowercase(),
+            onAbrirLista = { listaAbierta = it },
+            onSalir = {
+                listaAbierta = null
+                FirebaseAuth.getInstance().signOut()
+            }
         )
     } else {
-        // El listener actualiza el estado, no hace falta hacer nada aquí
-        LoginScreen(onLogged = { })
+        Column(Modifier.statusBarsPadding().padding(16.dp)) {
+            Text("Lista: ${lista.nombre}")
+            Button(onClick = { listaAbierta = null }) { Text("Volver") }
+        }
     }
-}
 
-@Composable
-fun PantallaPrincipal(
-    usuario: FirebaseUser,
-    onLogout: () -> Unit
-) {
-    Scaffold(
-        modifier = Modifier.fillMaxSize()
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(16.dp)
-        ) {
-            Text(stringResource(R.string.sesion_iniciada_como, usuario.email.orEmpty()))
-            Text(stringResource(R.string.uid_usuario, usuario.uid))
 
-            Button(onClick = onLogout) {
-                Text(stringResource(R.string.cerrar_sesion))
+    @Composable
+    fun PantallaPrincipal(
+        usuario: FirebaseUser,
+        onLogout: () -> Unit
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize()
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .padding(16.dp)
+            ) {
+                Text(stringResource(R.string.sesion_iniciada_como, usuario.email.orEmpty()))
+                Text(stringResource(R.string.uid_usuario, usuario.uid))
+
+                Button(onClick = onLogout) {
+                    Text(stringResource(R.string.cerrar_sesion))
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .padding(innerPadding)
+            ) {
+
+
             }
         }
     }
