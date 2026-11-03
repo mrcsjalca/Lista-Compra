@@ -1,4 +1,8 @@
 package org.insbaixcamp.cestadecompra.model
 
-class Producto {
-}
+data class Producto (
+    val id: String = "",
+    val nombre: String  = "",
+    val categoriaId: String = "",
+    val completado: Boolean = false
+)

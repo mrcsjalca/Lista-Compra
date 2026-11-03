@@ -12,6 +12,7 @@ googleGmsGoogleServices = "4.5.0"
 firebaseAuth = "25.0.0"
 firebaseFirestore = "27.0.0"
 playServicesAppindexing = "9.8.0"
+roomKtx = "2.8.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -32,6 +33,7 @@ androidx-compose-material3-adaptive-navigation-suite = { group = "androidx.compo
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version.ref = "firebaseAuth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore", version.ref = "firebaseFirestore" }
 play-services-appindexing = { group = "com.google.android.gms", name = "play-services-appindexing", version.ref = "playServicesAppindexing" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
