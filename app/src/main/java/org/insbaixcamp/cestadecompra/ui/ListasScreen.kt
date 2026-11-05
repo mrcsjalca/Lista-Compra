@@ -9,7 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.room.util.copy
+import org.insbaixcamp.cestadecompra.model.CATEGORIAS_POR_DEFECTO
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import org.insbaixcamp.cestadecompra.model.Lista
@@ -39,7 +39,9 @@ fun ListasScreen(
     // filtramos las listas por si son nuestras o de otra persona, esto lo hacemos con un boolean metido dentro de la clase lista
     val propias = listas.filter { it.esPropia(email) }
     val compartidas = listas.filter { !it.esPropia(email) }
-
+    val CATEGORIAS_POR_DEFECTO = listOf(
+        "Frutas y verduras", "Lácteos", "Carne y pescado", "Panadería", "Limpieza", "Otros"
+    )
     //El disposableEffect y el onDispose registra el listener y lo quita al salir de la pantalla para no acumular listeners
 
     DisposableEffect(email) {
@@ -87,9 +89,34 @@ fun ListasScreen(
                                 "propietarioNombre" to (usuario?.nombre ?: email),
                                 "miembros" to listOf(email)
                             )
-                        ).addOnSuccessListener { nuevoNombre = "" }
+                            //ref es la referencia  del documento recien creado
+                        ).addOnSuccessListener { ref ->
+                            // batch permite agrupar varias operaciones de escritura en fireStore
+                            val batch = db.batch()
+                            //recorremos las categorias que ya teniamos por defecto
+                            CATEGORIAS_POR_DEFECTO.forEach { cat ->
+                                // Creamos un documento para cada categoría
+
+                                val categoriaRef = ref.collection("categorias").document()
+                                batch.set(
+                                    categoriaRef,
+                                    mapOf("nombre" to cat)
+                                )
+                            }
+                                // IMPORTANTE: ejecutamos las operaciones
+                                batch.commit()
+                                    .addOnSuccessListener {
+                                        nuevoNombre = ""
+                                        Log.d("Listas", "Se han creado las 6 categorías")
+                                    }
+                                    .addOnFailureListener {
+                                        Log.e("Listas", "Error creando categorías", it)
+                                    }
+
+
+                        }
                             // Limpiamos el campo si se ha creado correctamente
-                            .addOnFailureListener { Log.e("Listas", "Error al crear", it) }
+                         .addOnFailureListener { Log.e("Listas", "Error al crear", it) }
                     }
                 },
                 modifier = Modifier.padding(start = 8.dp)

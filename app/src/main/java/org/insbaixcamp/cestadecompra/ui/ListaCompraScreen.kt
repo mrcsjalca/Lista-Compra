@@ -24,8 +24,16 @@ fun ListaCompraScreen(lista: Lista, onVolver: () -> Unit) {
     var nuevoNombre by remember { mutableStateOf("") }
     var categoriaEditando by remember { mutableStateOf<Categoria?>(null) }
     var nombreEditando by remember { mutableStateOf("") }
+    var categoriaSeleccionada by remember {mutableStateOf<Categoria?>(null)}
 
-    BackHandler { onVolver() }
+
+    BackHandler {
+        if(categoriaSeleccionada != null) {
+            categoriaSeleccionada = null
+        } else {
+            onVolver()
+        }
+    }
 
     DisposableEffect(lista.id) {
         val registro = categoriasRef.addSnapshotListener { snap, error ->
@@ -56,6 +64,8 @@ fun ListaCompraScreen(lista: Lista, onVolver: () -> Unit) {
             dismissButton = { TextButton(onClick = { categoriaEditando = null }) { Text("Cancelar") } }
         )
     }
+
+    if (categoriaSeleccionada == null) {
 
     Column(Modifier.statusBarsPadding().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -92,8 +102,23 @@ fun ListaCompraScreen(lista: Lista, onVolver: () -> Unit) {
                     Text(cat.nombre, Modifier.weight(1f))
                     TextButton(onClick = { nombreEditando = cat.nombre; categoriaEditando = cat }) { Text("Editar") }
                     TextButton(onClick = { categoriasRef.document(cat.id).delete() }) { Text("Eliminar") }
+                    Button(
+                        onClick = {
+                            categoriaSeleccionada = cat
+                        }
+                    ) {
+                        Text("Ver productos")
+                    }
                 }
             }
         }
+    } } else {
+        ProductosCategoria(
+            lista = lista,
+            categoria = categoriaSeleccionada!!,
+            onVolver = {
+                categoriaSeleccionada = null
+            }
+        )
     }
 }
