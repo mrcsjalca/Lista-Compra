@@ -4,6 +4,10 @@ import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,7 +25,7 @@ fun ProductosCategoria(
     categoria: Categoria,
     onVolver: () -> Unit
 ){
-    val db = remember {  FirebaseFirestore.getInstance() }
+    val db = remember { FirebaseFirestore.getInstance() }
 
     val productosRef = remember(lista.id, categoria.id) {
         db.collection("listas")
@@ -40,33 +44,38 @@ fun ProductosCategoria(
     }
 
     DisposableEffect(lista.id, categoria.id) {
-        //addSnapshotListener para escuchar datos en tiempo real
-        val registro = productosRef.addSnapshotListener {snap, error ->
+        val registro = productosRef.addSnapshotListener { snap, error ->
             if (error != null) {
                 Log.e("Productos", error.message ?: "")
                 return@addSnapshotListener
             }
-        // esto sirve para crear datos crudos de firabase firestore a objetos de kotlin
             if (snap != null) {
                 productos = snap.documents.mapNotNull { d ->
-                    d.toObject(Producto::class.java)
-                        ?.copy(id = d.id)
+                    d.toObject(Producto::class.java)?.copy(id = d.id)
                 }
+            }
         }
-    }
         onDispose { registro.remove() }
     }
+
     Column(
         Modifier
+            .statusBarsPadding()
             .fillMaxSize()
             .padding(16.dp)
     ) {
-
         // Título y botón volver
         Row(
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 8.dp)
         ) {
             OutlinedButton(onClick = onVolver) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Volver",
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(6.dp))
                 Text("Volver")
             }
 
@@ -77,25 +86,23 @@ fun ProductosCategoria(
             )
         }
 
-        // Campo para introducir productos
+        // Campo para añadir nuevo producto
         Row(
-            Modifier.padding(vertical = 12.dp),
+            modifier = Modifier.padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             OutlinedTextField(
                 value = nuevoProducto,
                 onValueChange = { nuevoProducto = it },
                 label = { Text("Nuevo producto") },
+                singleLine = true,
                 modifier = Modifier.weight(1f)
             )
 
             Button(
                 onClick = {
                     val nombre = nuevoProducto.trim()
-
                     if (nombre.isNotEmpty()) {
-
                         productosRef.add(
                             mapOf(
                                 "nombre" to nombre,
@@ -108,56 +115,87 @@ fun ProductosCategoria(
                         }
                     }
                 },
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .height(54.dp)
             ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
                 Text("Añadir")
             }
         }
 
-        // Mostramos los productos
-        LazyColumn {
-
-            items(productos, key = { it.id }) { producto ->
-
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    // Marcar como completado
-                    Checkbox(
-                        checked = producto.completado,
-                        onCheckedChange = { marcado ->
-
-                            productosRef
-                                .document(producto.id)
-                                .update("completado", marcado)
-                        }
-                    )
-
-                    Text(
-                        producto.nombre,
-                        modifier = Modifier.weight(1f),
-                        style = if (producto.completado) {
-                            MaterialTheme.typography.bodyMedium.copy(
-                                textDecoration = TextDecoration.LineThrough
-                            )
-                        } else {
-                            MaterialTheme.typography.bodyMedium
-                        }
-                    )
-
-                    // Eliminar producto
-                    TextButton(
-                        onClick = {
-                            productosRef
-                                .document(producto.id)
-                                .delete()
-                        }
+        // Lista de productos cómodos
+        if (productos.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "No hay productos en esta categoría.\n¡Escribe uno arriba para añadirlo!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(productos, key = { it.id }) { producto ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (producto.completado) {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        )
                     ) {
-                        Text("Eliminar")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = producto.completado,
+                                onCheckedChange = { marcado ->
+                                    productosRef
+                                        .document(producto.id)
+                                        .update("completado", marcado)
+                                }
+                            )
+
+                            Text(
+                                text = producto.nombre,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 8.dp),
+                                style = if (producto.completado) {
+                                    MaterialTheme.typography.bodyLarge.copy(
+                                        textDecoration = TextDecoration.LineThrough,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                } else {
+                                    MaterialTheme.typography.bodyLarge
+                                }
+                            )
+
+                            IconButton(
+                                onClick = {
+                                    productosRef
+                                        .document(producto.id)
+                                        .delete()
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Eliminar producto",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                     }
                 }
             }
