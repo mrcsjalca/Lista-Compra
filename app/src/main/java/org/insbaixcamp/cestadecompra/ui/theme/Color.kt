@@ -2,25 +2,32 @@ package org.insbaixcamp.cestadecompra.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Paleta verde verde-sabio (Sage Green) y crema cálido
-val SagePrimary = Color(0xFF527848)
+// Paleta Verde Sabio (Sage Green) y Crema con alto contraste y frescura
+val SagePrimary = Color(0xFF456B3A)
 val SageOnPrimary = Color(0xFFFFFFFF)
-val SagePrimaryContainer = Color(0xFFD7E8CE)
-val SageOnPrimaryContainer = Color(0xFF132A0B)
+val SagePrimaryContainer = Color(0xFFD6E8CE)
+val SageOnPrimaryContainer = Color(0xFF0F200A)
 
-val SageSecondary = Color(0xFF6B8E5F)
-val SageSecondaryContainer = Color(0xFFE3EDE0)
-val SageOnSecondaryContainer = Color(0xFF22351C)
+val SageSecondary = Color(0xFF5B7E50)
+val SageOnSecondary = Color(0xFFFFFFFF)
+val SageSecondaryContainer = Color(0xFFDFEAD9)
+val SageOnSecondaryContainer = Color(0xFF1B2A17)
 
-val SageBackground = Color(0xFFF9F8F5)
-val SageOnBackground = Color(0xFF1B1C1A)
-val SageSurface = Color(0xFFF9F8F5)
-val SageOnSurface = Color(0xFF1B1C1A)
-val SageSurfaceVariant = Color(0xFFE3E0D8)
-val SageOnSurfaceVariant = Color(0xFF464843)
+val SageBackground = Color(0xFFFAFAF7)
+val SageOnBackground = Color(0xFF191C18)
+val SageSurface = Color(0xFFFFFFFF)
+val SageOnSurface = Color(0xFF191C18)
+val SageSurfaceVariant = Color(0xFFEEEDE6)
+val SageOnSurfaceVariant = Color(0xFF43483F)
 
-val SageDarkPrimary = Color(0xFF98D48D)
-val SageDarkPrimaryContainer = Color(0xFF3B5F32)
-val SageDarkBackground = Color(0xFF1A1C19)
-val SageDarkSurface = Color(0xFF1A1C19)
-val SageDarkSurfaceVariant = Color(0xFF43483F)
+// Colores para Modo Oscuro
+val SageDarkPrimary = Color(0xFF92C388)
+val SageDarkOnPrimary = Color(0xFF13380B)
+val SageDarkPrimaryContainer = Color(0xFF2E5124)
+val SageDarkOnPrimaryContainer = Color(0xFFD6E8CE)
+val SageDarkBackground = Color(0xFF111410)
+val SageDarkOnBackground = Color(0xFFE2E3DD)
+val SageDarkSurface = Color(0xFF191C18)
+val SageDarkOnSurface = Color(0xFFE2E3DD)
+val SageDarkSurfaceVariant = Color(0xFF333830)
+val SageDarkOnSurfaceVariant = Color(0xFFC3C8BD)

@@ -20,10 +20,18 @@ import org.insbaixcamp.cestadecompra.ui.ListasScreen
 import org.insbaixcamp.cestadecompra.ui.LoginScreen
 import org.insbaixcamp.cestadecompra.ui.theme.CestadecompraTheme
 
+/**
+ * Actividad principal de la aplicación.
+ * Gestiona el flujo entre la pantalla de Login, la lista general de compras
+ * y la pantalla de detalle de una lista abierta.
+ */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Inicializar canal de notificaciones para las invitaciones
+        NotificationHelper.crearCanal(this)
 
         setContent {
             CestadecompraTheme {
@@ -38,7 +46,7 @@ fun CestadecompraApp() {
     var usuario by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser) }
     var listaAbierta by remember { mutableStateOf<Lista?>(null) }
 
-    // Escucha los cambios de sesión (login, logout, token revocado...)
+    // Escuchar el estado de autenticación (inicio o cierre de sesión)
     DisposableEffect(Unit) {
         val listener = FirebaseAuth.AuthStateListener { auth ->
             usuario = auth.currentUser
@@ -47,7 +55,7 @@ fun CestadecompraApp() {
         onDispose { FirebaseAuth.getInstance().removeAuthStateListener(listener) }
     }
 
-    // Registrar al usuario en Firestore al iniciar sesión para validar su existencia
+    // Registrar o actualizar datos básicos del usuario en Firestore
     val usuarioActual = usuario
     LaunchedEffect(usuarioActual?.uid) {
         if (usuarioActual != null) {
@@ -72,8 +80,10 @@ fun CestadecompraApp() {
 
     val lista = listaAbierta
     if (usuarioActual == null) {
+        // Si no ha iniciado sesión, mostrar pantalla de bienvenida y login
         LoginScreen(onLogged = { })
     } else if (lista == null) {
+        // Pantalla con todas las listas (propias y compartidas)
         ListasScreen(
             email = usuarioActual.email.orEmpty().lowercase(),
             onAbrirLista = { listaAbierta = it },
@@ -83,6 +93,10 @@ fun CestadecompraApp() {
             }
         )
     } else {
-        ListaCompraScreen(lista = lista, onVolver = { listaAbierta = null })
+        // Pantalla de detalle de la lista seleccionada
+        ListaCompraScreen(
+            lista = lista,
+            onVolver = { listaAbierta = null }
+        )
     }
 }

@@ -1,5 +1,9 @@
 package org.insbaixcamp.cestadecompra.model
 
+/**
+ * Modelo de datos para las listas de compra.
+ * Incluye el propietario y la lista de correos de los miembros con acceso.
+ */
 data class Lista(
     val id: String = "",
     val nombre: String = "",
@@ -7,12 +11,10 @@ data class Lista(
     val propietarioNombre: String = "",
     val miembros: List<String> = emptyList()
 ) {
+    /**
+     * Comprueba si la lista pertenece al correo indicado.
+     */
     fun esPropia(email: String): Boolean {
-        // devuelve un boolean si es el correo del usuario o no
-        return propietario == email
+        return propietario.trim().lowercase() == email.trim().lowercase()
     }
 }
-
-
-
-

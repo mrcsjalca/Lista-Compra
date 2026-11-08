@@ -5,19 +5,26 @@ import android.util.Patterns
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.google.firebase.firestore.FieldValue
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import org.insbaixcamp.cestadecompra.model.Lista
 
+/**
+ * Diálogo para compartir una lista de compras con otros usuarios mediante su correo electrónico.
+ * Al compartir, se genera una invitación en la colección 'solicitudes' para que el destinatario
+ * reciba una notificación y decida si aceptar o rechazar unirse a la lista.
+ */
 @Composable
 fun CompartirDialog(
     lista: Lista,
@@ -26,80 +33,105 @@ fun CompartirDialog(
 ) {
     val db = remember { FirebaseFirestore.getInstance() }
     var emailInput by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    var exito by remember { mutableStateOf<String?>(null) }
-    var buscando by remember { mutableStateOf(false) }
+    var mensajeError by remember { mutableStateOf<String?>(null) }
+    var mensajeExito by remember { mutableStateOf<String?>(null) }
+    var enviando by remember { mutableStateOf(false) }
 
-    // Obtener colaboradores frecuentes a partir de las listas que comparte el usuario
+    // Colaboradores frecuentes encontrados en otras listas compartidas del usuario
     var colaboradoresFrecuentes by remember(emailUsuario) { mutableStateOf(listOf<String>()) }
 
+    // Cargar colaboradores frecuentes de manera reactiva
     DisposableEffect(emailUsuario) {
         val registro = db.collection("listas")
             .whereArrayContains("miembros", emailUsuario)
             .addSnapshotListener { snap, err ->
                 if (err == null && snap != null) {
-                    val todosMiembros = snap.documents
+                    val miembros = snap.documents
                         .flatMap { doc ->
                             (doc.get("miembros") as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
                         }
-                        .filter { it.lowercase() != emailUsuario.lowercase() }
+                        .filter { it.trim().lowercase() != emailUsuario.trim().lowercase() }
                         .distinct()
-                    colaboradoresFrecuentes = todosMiembros
+                    colaboradoresFrecuentes = miembros
                 }
             }
         onDispose { registro.remove() }
     }
 
-    fun compartirLista(targetEmail: String) {
-        val e = targetEmail.trim().lowercase()
+    // Crea la invitación con ID fijo "listaId_email" (las reglas de Firestore comprueban ese ID)
+    fun crearInvitacion(e: String) {
+        val usuarioActual = FirebaseAuth.getInstance().currentUser
+        val nombreRemitente = usuarioActual?.displayName?.takeIf { it.isNotBlank() }
+            ?: emailUsuario.substringBefore("@")
+
+        val nuevaInvitacion = mapOf(
+            "paraEmail" to e,
+            "deEmail" to emailUsuario.trim().lowercase(),
+            "deNombre" to nombreRemitente,
+            "tipo" to "lista",
+            "listaId" to lista.id,
+            "listaNombre" to lista.nombre,
+            "fecha" to System.currentTimeMillis()
+        )
+
+        db.collection("solicitudes").document("${lista.id}_$e").set(nuevaInvitacion)
+            .addOnSuccessListener {
+                enviando = false
+                mensajeExito = "Invitación enviada a $e"
+                mensajeError = null
+                emailInput = ""
+            }
+            .addOnFailureListener { error ->
+                enviando = false
+                Log.e("Compartir", "Error al enviar invitación", error)
+                mensajeError = "Error al enviar la invitación. Revisa tu conexión."
+                mensajeExito = null
+            }
+    }
+
+    // Función para validar y enviar la invitación al correo indicado
+    fun enviarInvitacion(correoDestino: String) {
+        val e = correoDestino.trim().lowercase()
+
         when {
+            e.isBlank() -> {
+                mensajeError = "Introduce un correo electrónico"
+                mensajeExito = null
+            }
             !Patterns.EMAIL_ADDRESS.matcher(e).matches() -> {
-                error = "Email no válido"
-                exito = null
+                mensajeError = "El formato de correo no es válido"
+                mensajeExito = null
             }
-            e == emailUsuario -> {
-                error = "Ya eres el propietario de esta lista"
-                exito = null
+            e == emailUsuario.trim().lowercase() -> {
+                mensajeError = "Ya eres el propietario de esta lista"
+                mensajeExito = null
             }
-            e in lista.miembros -> {
-                error = "Ya es miembro de esta lista"
-                exito = null
+            lista.miembros.any { it.trim().lowercase() == e } -> {
+                mensajeError = "Este usuario ya forma parte de la lista"
+                mensajeExito = null
             }
             else -> {
-                error = null
-                buscando = true
+                mensajeError = null
+                enviando = true
 
-                // Comprobar primeramente si la persona está registrada en la app
-                db.collection("usuarios").document(e).get()
-                    .addOnSuccessListener { doc ->
-                        buscando = false
-                        if (doc.exists()) {
-                            // Usuario registrado -> compartir lista
-                            db.collection("listas").document(lista.id)
-                                .update("miembros", FieldValue.arrayUnion(e))
-                                .addOnSuccessListener {
-                                    exito = "Lista compartida con $e"
-                                    emailInput = ""
-                                }
-                                .addOnFailureListener { err ->
-                                    Log.e("Compartir", "Error al añadir miembro", err)
-                                    error = "No se pudo compartir la lista"
-                                }
+                // Comprobar si ya existe una invitación pendiente (incluye deEmail por las reglas)
+                db.collection("solicitudes")
+                    .whereEqualTo("paraEmail", e)
+                    .whereEqualTo("listaId", lista.id)
+                    .whereEqualTo("deEmail", emailUsuario.trim().lowercase())
+                    .get()
+                    .addOnSuccessListener { querySnap ->
+                        if (!querySnap.isEmpty) {
+                            enviando = false
+                            mensajeError = "Ya hay una invitación pendiente para este correo"
+                            mensajeExito = null
                         } else {
-                            // Usuario no registrado en la app
-                            error = "El usuario '$e' no está registrado en la app. Debe iniciar sesión en la app primero."
-                            exito = null
+                            crearInvitacion(e)
                         }
                     }
-                    .addOnFailureListener { err ->
-                        buscando = false
-                        Log.e("Compartir", "Error verificando usuario, añadiendo directamente", err)
-                        db.collection("listas").document(lista.id)
-                            .update("miembros", FieldValue.arrayUnion(e))
-                            .addOnSuccessListener {
-                                exito = "Lista compartida con $e"
-                                emailInput = ""
-                            }
+                    .addOnFailureListener {
+                        // Si falla la comprobación, enviamos directamente la invitación
+                        crearInvitacion(e)
                     }
             }
         }
@@ -107,126 +139,160 @@ fun CompartirDialog(
 
     AlertDialog(
         onDismissRequest = onCerrar,
-        title = { Text("Compartir \"${lista.nombre}\"") },
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Share,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text(
+                text = "Compartir \"${lista.nombre}\"",
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 420.dp)
             ) {
-                // Mensajes de error, éxito o búsqueda
-                if (buscando) {
-                    Text(
-                        text = "Verificando si el usuario está registrado...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
-                error?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
-                exito?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                Text(
+                    text = "Invita a otra persona para que pueda ver y editar los productos de esta lista.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                // Mensajes informativos de error o éxito
+                if (mensajeError != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    ) {
+                        Text(
+                            text = mensajeError.orEmpty(),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
                 }
 
-                // Campo para ingresar un correo electrónico
-                Text(
-                    text = "Añadir persona por correo electrónico:",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
+                if (mensajeExito != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    ) {
+                        Text(
+                            text = mensajeExito.orEmpty(),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+
+                // Campo para introducir el correo del destinatario
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                 ) {
                     OutlinedTextField(
                         value = emailInput,
-                        onValueChange = { emailInput = it; error = null; exito = null },
-                        label = { Text("Email de la persona") },
+                        onValueChange = {
+                            emailInput = it
+                            mensajeError = null
+                            mensajeExito = null
+                        },
+                        label = { Text("Correo electrónico") },
+                        placeholder = { Text("ejemplo@gmail.com") },
                         singleLine = true,
-                        isError = error != null,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     )
-                    IconButton(
-                        onClick = { compartirLista(emailInput) },
-                        enabled = !buscando,
-                        modifier = Modifier.padding(start = 4.dp)
+
+                    Spacer(Modifier.width(8.dp))
+
+                    Button(
+                        onClick = { enviarInvitacion(emailInput) },
+                        enabled = !enviando && emailInput.isNotBlank(),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Compartir lista")
+                        if (enviando) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar")
+                        }
                     }
                 }
 
-                HorizontalDivider(Modifier.padding(vertical = 4.dp))
-
-                // Colaboradores Frecuentes
-                Text(
-                    text = "Mis colaboradores frecuentes:",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-
-                if (colaboradoresFrecuentes.isEmpty()) {
+                // Sugerencias de colaboradores habituales
+                if (colaboradoresFrecuentes.isNotEmpty()) {
                     Text(
-                        text = "Aún no has compartido listas con otros usuarios",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        text = "Colaboradores frecuentes:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
                     )
-                } else {
+
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f, fill = false)
                     ) {
-                        items(colaboradoresFrecuentes) { emailColaborador ->
-                            val yaEsMiembro = emailColaborador in lista.miembros
-                            Row(
+                        items(colaboradoresFrecuentes) { colabEmail ->
+                            val yaEsta = lista.miembros.any { it.trim().lowercase() == colabEmail.trim().lowercase() }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 2.dp)
                             ) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = emailColaborador,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(start = 8.dp)
-                                )
-                                if (yaEsMiembro) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = "Ya es miembro",
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.size(20.dp)
+                                        Icons.Default.Person,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
-                                } else {
-                                    IconButton(
-                                        onClick = { compartirLista(emailColaborador) },
-                                        enabled = !buscando
-                                    ) {
+                                    Text(
+                                        text = colabEmail,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 8.dp)
+                                    )
+                                    if (yaEsta) {
                                         Icon(
-                                            Icons.AutoMirrored.Filled.Send,
-                                            contentDescription = "Añadir a la lista",
-                                            tint = MaterialTheme.colorScheme.primary
+                                            Icons.Default.Check,
+                                            contentDescription = "Ya está en la lista",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
                                         )
+                                    } else {
+                                        IconButton(
+                                            onClick = { enviarInvitacion(colabEmail) },
+                                            enabled = !enviando,
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.AutoMirrored.Filled.Send,
+                                                contentDescription = "Invitar",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -236,18 +302,21 @@ fun CompartirDialog(
 
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
-                // Miembros Actuales
+                // Lista de miembros actuales de esta lista
                 Text(
-                    text = "Miembros actuales (${lista.miembros.size}):",
-                    style = MaterialTheme.typography.labelLarge,
+                    text = "Miembros en esta lista (${lista.miembros.size}):",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
-                lista.miembros.forEach { m ->
+
+                lista.miembros.forEach { miembro ->
+                    val esCreador = miembro.trim().lowercase() == lista.propietario.trim().lowercase()
                     Text(
-                        text = "• $m",
+                        text = "• $miembro" + if (esCreador) " (Creador)" else "",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 4.dp)
+                        modifier = Modifier.padding(vertical = 1.dp, horizontal = 4.dp)
                     )
                 }
             }

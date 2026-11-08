@@ -10,6 +10,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Autenticación mediante Google Credential Manager e inicio de sesión en Firebase Auth.
+ * Retorna true si el inicio de sesión fue exitoso, false en caso contrario.
+ */
 suspend fun loginConGoogle(context: Context): Boolean {
     val credentialManager = CredentialManager.create(context)
 
@@ -29,7 +33,7 @@ suspend fun loginConGoogle(context: Context): Boolean {
         FirebaseAuth.getInstance().signInWithCredential(firebaseCred).await()
         true
     } catch (e: Exception) {
-        Log.e("Login", "Error Google: ${e.message}")
+        Log.e("Login", "Error en inicio de sesión con Google: ${e.message}")
         false
     }
 }

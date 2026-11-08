@@ -8,11 +8,15 @@ import androidx.compose.runtime.Composable
 
 private val DarkColorScheme = darkColorScheme(
     primary = SageDarkPrimary,
-    onPrimary = SageOnPrimaryContainer,
+    onPrimary = SageDarkOnPrimary,
     primaryContainer = SageDarkPrimaryContainer,
+    onPrimaryContainer = SageDarkOnPrimaryContainer,
     background = SageDarkBackground,
+    onBackground = SageDarkOnBackground,
     surface = SageDarkSurface,
-    surfaceVariant = SageDarkSurfaceVariant
+    onSurface = SageDarkOnSurface,
+    surfaceVariant = SageDarkSurfaceVariant,
+    onSurfaceVariant = SageDarkOnSurfaceVariant
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -21,6 +25,7 @@ private val LightColorScheme = lightColorScheme(
     primaryContainer = SagePrimaryContainer,
     onPrimaryContainer = SageOnPrimaryContainer,
     secondary = SageSecondary,
+    onSecondary = SageOnSecondary,
     secondaryContainer = SageSecondaryContainer,
     onSecondaryContainer = SageOnSecondaryContainer,
     background = SageBackground,
